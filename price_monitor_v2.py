@@ -209,6 +209,10 @@ def fetch_price(url, selectors, badge_selectors=None):
         .replace("\xa0", "")  # non-breaking space, common on price tags
         .replace(" ", "")
         .replace(",", "")
+        .replace("-tól", "")
+        .replace("-től", "")
+        .replace("ft", "")
+        .replace(".", "")
         .strip()
     )
 
