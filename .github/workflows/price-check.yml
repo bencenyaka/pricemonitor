@@ -36,7 +36,7 @@ jobs:
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           SENDER_APP_PASSWORD: ${{ secrets.SENDER_APP_PASSWORD }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
-        run: python price_monitor.py
+        run: python price_monitor_v2.py
 
       - name: Save updated price history back to the repo
         run: |
