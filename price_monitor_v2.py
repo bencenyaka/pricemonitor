@@ -224,30 +224,39 @@ def fetch_price(url, selectors, badge_selectors=None):
 def send_email(subject, body, email_config):
     """
     Sends the notification email. Two methods are supported:
-
-    1. Resend (recommended for GitHub Actions / cloud use) — a simple HTTP
-       API call, no login handshake to fail. Used automatically if
-       RESEND_API_KEY is set (as a GitHub Secret, or local env var).
-
-    2. Gmail SMTP — works fine for local runs on your own computer, but
-       Gmail sometimes silently blocks logins from cloud/data-center IPs
-       (like GitHub Actions), which shows up as a confusing
-       "Connection unexpectedly closed" error. Used as a fallback if no
-       Resend API key is set.
-
-    `recipient_email` in config.json can be a single address (string) or a
-    list of addresses — everyone in the list gets the same email.
+    1. Resend (HTTP API) - Used if RESEND_API_KEY is present in env.
+    2. Gmail SMTP - Fallback if no API key is found.
     """
-    recipients = email_config["recipient_email"]
+    # 1. Fetch values from Environment Variables first (GitHub Secrets)
+    resend_api_key = os.environ.get("RESEND_API_KEY")
+    sender_email = os.environ.get("SENDER_EMAIL") or email_config.get("sender_email")
+    recipient_env = os.environ.get("RECIPIENT_EMAIL")
+
+    # 2. Handle recipient fallback/parsing
+    if recipient_env:
+        # If GitHub passed it as a comma-separated string, split it into a list
+        recipients = [r.strip() for r in recipient_env.split(",") if r.strip()]
+    else:
+        recipients = email_config.get("recipient_email")
+
     if isinstance(recipients, str):
         recipients = [recipients]
 
-    resend_api_key = os.environ.get("RESEND_API_KEY")
-
+    # 3. Route to Resend if API key is present
     if resend_api_key:
-        _send_email_resend(subject, body, email_config, recipients, resend_api_key)
+        print("RESEND_API_KEY detected. Routing email through Resend API...")
+        _send_email_resend(subject, body, {"sender_email": sender_email}, recipients, resend_api_key)
+    
+    # 4. Otherwise, fallback to SMTP using combined Env/JSON configs
     else:
-        _send_email_smtp(subject, body, email_config, recipients)
+        print("No RESEND_API_KEY found. Falling back to SMTP...")
+        
+        # Merge environment variables into email_config so SMTP has the correct passwords
+        smtp_config = email_config.copy()
+        smtp_config["sender_email"] = sender_email
+        smtp_config["sender_app_password"] = os.environ.get("SENDER_APP_PASSWORD") or email_config.get("sender_app_password")
+        
+        _send_email_smtp(subject, body, smtp_config, recipients)
 
 
 def _send_email_resend(subject, body, email_config, recipients, api_key):
