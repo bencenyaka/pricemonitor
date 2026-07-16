@@ -30,6 +30,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Debug API Key Presence
+        run: |
+          if [ -z "${{ secrets.RESEND_API_KEY }}" ]; then
+            echo "❌ RESEND_API_KEY is EMPTY or NOT FOUND in GitHub Secrets"
+          else
+            echo "✅ RESEND_API_KEY is configured and detected by GitHub"
+          fi
+
       - name: Run price monitor
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
