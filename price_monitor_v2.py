@@ -35,9 +35,35 @@ HISTORY_FILE = os.path.join(SCRIPT_DIR, "price_history.json")
 
 # --- Step 1: load config -------------------------------------------------
 def load_config():
-    """config.json holds the list of products and your email settings."""
+    """
+    config.json holds the list of products and your email settings.
+
+    For email credentials specifically, environment variables take priority
+    over what's in config.json if they're set. This lets you run the script
+    two ways:
+      - Locally: just fill in config.json directly, nothing else needed.
+      - On GitHub Actions: leave the sensitive fields in config.json blank
+        (or with placeholder text) and set them as encrypted GitHub Secrets
+        instead (SENDER_EMAIL, SENDER_APP_PASSWORD, RECIPIENT_EMAIL) — this
+        avoids putting your real email password in a file that gets pushed
+        to GitHub, even in a private repo.
+    """
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+        config = json.load(f)
+
+    env_overrides = {
+        "sender_email": os.environ.get("SENDER_EMAIL"),
+        "sender_app_password": os.environ.get("SENDER_APP_PASSWORD"),
+        "recipient_email": os.environ.get("RECIPIENT_EMAIL"),
+    }
+    for key, value in env_overrides.items():
+        if value:  # only override if the env var is actually set
+            # recipient_email may be a comma-separated list in the env var
+            if key == "recipient_email" and "," in value:
+                value = [addr.strip() for addr in value.split(",")]
+            config["email"][key] = value
+
+    return config
 
 
 # --- Step 2: load / save price history -----------------------------------
@@ -183,9 +209,6 @@ def fetch_price(url, selectors, badge_selectors=None):
         .replace("\xa0", "")  # non-breaking space, common on price tags
         .replace(" ", "")
         .replace(",", "")
-        .replace("-től", "")
-        .replace("-tól", "")
-        .replace(".", "")
         .strip()
     )
 
@@ -196,8 +219,17 @@ def fetch_price(url, selectors, badge_selectors=None):
 # --- Step 4: send an email -------------------------------------------------
 def send_email(subject, body, email_config):
     """
-    Sends an email using Gmail's SMTP server (or any SMTP server you configure).
-    See README.md for how to set up a Gmail "app password".
+    Sends the notification email. Two methods are supported:
+
+    1. Resend (recommended for GitHub Actions / cloud use) — a simple HTTP
+       API call, no login handshake to fail. Used automatically if
+       RESEND_API_KEY is set (as a GitHub Secret, or local env var).
+
+    2. Gmail SMTP — works fine for local runs on your own computer, but
+       Gmail sometimes silently blocks logins from cloud/data-center IPs
+       (like GitHub Actions), which shows up as a confusing
+       "Connection unexpectedly closed" error. Used as a fallback if no
+       Resend API key is set.
 
     `recipient_email` in config.json can be a single address (string) or a
     list of addresses — everyone in the list gets the same email.
@@ -206,6 +238,36 @@ def send_email(subject, body, email_config):
     if isinstance(recipients, str):
         recipients = [recipients]
 
+    resend_api_key = os.environ.get("RESEND_API_KEY")
+
+    if resend_api_key:
+        _send_email_resend(subject, body, email_config, recipients, resend_api_key)
+    else:
+        _send_email_smtp(subject, body, email_config, recipients)
+
+
+def _send_email_resend(subject, body, email_config, recipients, api_key):
+    """Send via Resend's HTTP API (https://resend.com) — no SMTP login involved."""
+    response = requests.post(
+        "https://api.resend.com/emails",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "from": email_config["sender_email"],
+            "to": recipients,
+            "subject": subject,
+            "text": body,
+        },
+        timeout=15,
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(f"Resend API error {response.status_code}: {response.text}")
+
+
+def _send_email_smtp(subject, body, email_config, recipients):
+    """Send via Gmail (or other) SMTP server — fine for local runs."""
     msg = MIMEMultipart()
     msg["From"] = email_config["sender_email"]
     msg["To"] = ", ".join(recipients)  # just for display in the email header
@@ -216,8 +278,6 @@ def send_email(subject, body, email_config):
     with smtplib.SMTP(email_config["smtp_server"], email_config["smtp_port"]) as server:
         server.starttls(context=context)
         server.login(email_config["sender_email"], email_config["sender_app_password"])
-        # send_message uses the header above, but to be explicit and safe,
-        # pass the actual recipient list separately too.
         server.sendmail(email_config["sender_email"], recipients, msg.as_string())
 
 
