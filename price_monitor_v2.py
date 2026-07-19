@@ -303,9 +303,9 @@ def format_price(price):
     if price is None:
         return "price unknown"
     if price > 10000:
-        return f"{price:,.0f} €".replace(",", " ")
-    else:
         return f"{price:,.0f} Ft".replace(",", " ")
+    else:
+        return f"{price:,.0f} €".replace(",", " ")
 
 
 # --- Main logic --------------------------------------------------------
