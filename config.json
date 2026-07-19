@@ -62,12 +62,12 @@
     },
     {
       "name": "Adidas Terrex Anylander R.Rdy férfi túracipő",
-      "url": "https://www.canyon.com/en-hu/road-bikes/race-bikes/ultimate/cf-sl/ultimate-cf-7/4367.html?dwvar_4367_pv_rahmenfarbe=R101_P11&dwvar_4367_pv_rahmengroesse=S",
+      "url": "https://www.4camping.hu/p/adidas-terrex-anylander-r-rdy-ferficipo/#43-1-3-fekete",
       "selector": ".product-detail__price"
     },
     {
       "name": "Canyon Ultimate CF 7",
-      "url": "https://www.4camping.hu/p/adidas-terrex-anylander-r-rdy-ferficipo/#43-1-3-fekete",
+      "url": "https://www.canyon.com/en-hu/road-bikes/race-bikes/ultimate/cf-sl/ultimate-cf-7/4367.html?dwvar_4367_pv_rahmenfarbe=R101_P11&dwvar_4367_pv_rahmengroesse=S",
       "selector": ".productDescription__priceSale"
     }
   ],
