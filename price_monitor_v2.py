@@ -198,7 +198,9 @@ def fetch_price(url, selectors, badge_selectors=None):
     text_pieces = [t for t in element.stripped_strings if "%" not in t]
     raw_text = " ".join(text_pieces)
 
-    # Clean up the text: remove currency symbols, whitespace, thousands separators.
+    # Clean up the text: remove currency symbols, whitespace, thousands
+    # separators, and known trailing words like Hungarian "-tól"/"-től"
+    # ("starting from") that some sites append to price ranges.
     cleaned = (
         raw_text.strip()
         .replace("€", "")
@@ -206,12 +208,12 @@ def fetch_price(url, selectors, badge_selectors=None):
         .replace("£", "")
         .replace("Ft", "")
         .replace("FT", "")
+        .replace("ft", "")
         .replace("\xa0", "")  # non-breaking space, common on price tags
         .replace(" ", "")
         .replace(",", "")
         .replace("-tól", "")
         .replace("-től", "")
-        .replace("ft", "")
         .replace(".", "")
         .strip()
     )
@@ -224,17 +226,14 @@ def fetch_price(url, selectors, badge_selectors=None):
 def send_email(subject, body, email_config):
     """
     Sends the notification email. Two methods are supported:
-    1. Resend (HTTP API) - Used if RESEND_API_KEY is present in env.
-    2. Gmail SMTP - Fallback if no API key is found.
+    1. Resend (HTTP API) - used automatically if RESEND_API_KEY is present.
+    2. Gmail SMTP - fallback if no Resend API key is found.
     """
-    # 1. Fetch values from Environment Variables first (GitHub Secrets)
     resend_api_key = os.environ.get("RESEND_API_KEY")
     sender_email = os.environ.get("SENDER_EMAIL") or email_config.get("sender_email")
     recipient_env = os.environ.get("RECIPIENT_EMAIL")
 
-    # 2. Handle recipient fallback/parsing
     if recipient_env:
-        # If GitHub passed it as a comma-separated string, split it into a list
         recipients = [r.strip() for r in recipient_env.split(",") if r.strip()]
     else:
         recipients = email_config.get("recipient_email")
@@ -242,20 +241,14 @@ def send_email(subject, body, email_config):
     if isinstance(recipients, str):
         recipients = [recipients]
 
-    # 3. Route to Resend if API key is present
     if resend_api_key:
         print("RESEND_API_KEY detected. Routing email through Resend API...")
         _send_email_resend(subject, body, {"sender_email": sender_email}, recipients, resend_api_key)
-    
-    # 4. Otherwise, fallback to SMTP using combined Env/JSON configs
     else:
         print("No RESEND_API_KEY found. Falling back to SMTP...")
-        
-        # Merge environment variables into email_config so SMTP has the correct passwords
         smtp_config = email_config.copy()
         smtp_config["sender_email"] = sender_email
         smtp_config["sender_app_password"] = os.environ.get("SENDER_APP_PASSWORD") or email_config.get("sender_app_password")
-        
         _send_email_smtp(subject, body, smtp_config, recipients)
 
 
@@ -294,11 +287,33 @@ def _send_email_smtp(subject, body, email_config, recipients):
         server.sendmail(email_config["sender_email"], recipients, msg.as_string())
 
 
+# --- Formatting helper: guess currency by price magnitude -----------------
+def format_price(price):
+    """
+    Formats a price for display in the email, guessing the currency from
+    the magnitude of the number:
+      - price > 10000  -> shown in euros (€)
+      - price <= 10000 -> shown in forint (Ft)
+
+    NOTE: this is a magnitude-based guess, not read from the page itself —
+    double check this matches your actual products. If it's backwards for
+    your case (e.g. small numbers should be € and large numbers Ft), just
+    flip the comparison below.
+    """
+    if price is None:
+        return "price unknown"
+    if price > 10000:
+        return f"{price:,.0f} €".replace(",", " ")
+    else:
+        return f"{price:,.0f} Ft".replace(",", " ")
+
+
 # --- Main logic --------------------------------------------------------
 def main():
     config = load_config()
     history = load_history()
     deals = []  # will hold text lines about any price drops we find
+    product_lines = []  # name + url + current/last-known price, for every product
 
     for product in config["products"]:
         name = product["name"]
@@ -315,8 +330,9 @@ def main():
             # The previously saved price stays exactly as it was, so a
             # temporary layout change (e.g. sale ending, page hiccup)
             # never wipes out or corrupts what we last successfully read.
-            previous = history.get(url, {}).get("last_price", "none saved yet")
-            print(f"  Could not read price this run ({e}). Keeping previous price: {previous}")
+            previous = history.get(url, {}).get("last_price")
+            print(f"  Could not read price this run ({e}). Keeping previous price: {previous if previous is not None else 'none saved yet'}")
+            product_lines.append(f"{name}\n{url}\n{format_price(previous)}")
             continue
 
         previous_price = history.get(url, {}).get("last_price")
@@ -330,13 +346,13 @@ def main():
 
         # Only update history when we successfully read a price this run.
         history[url] = {"name": name, "last_price": current_price}
+        product_lines.append(f"{name}\n{url}\n{format_price(current_price)}")
 
     save_history(history)
 
-    # Build the "all watched products" list, shown in every email.
-    watched_list = "\n\n".join(
-        f"{product['name']}\n{product['url']}" for product in config["products"]
-    )
+    # Build the "all watched products" list, shown in every email —
+    # now including each product's current (or last-known) price.
+    watched_list = "\n\n".join(product_lines)
 
     if deals:
         subject = f"Price drop alert! {len(deals)} product(s) got cheaper"
