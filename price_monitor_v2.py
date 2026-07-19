@@ -124,6 +124,54 @@ def fetch_price_from_jsonld(soup):
     raise ValueError("No JSON-LD Product price found on this page.")
 
 
+# --- Number parsing helper: handles different regional formats -----------
+def parse_localized_number(raw_text):
+    """
+    Converts a price string into a float, correctly handling different
+    regional number formats:
+      - Hungarian style:  "44.990"     (dot = thousands separator, no decimals)
+      - European style:   "1 778,39"   (space = thousands, comma = decimal)
+      - Plain style:      "24280"      (just digits)
+
+    The key trick: a comma or dot is treated as a DECIMAL separator only if
+    it's followed by exactly 2 digits at the very end of the number (e.g.
+    ",39" or ".39"). Otherwise, it's treated as a thousands separator and
+    removed. This correctly tells apart "1.778,39" (thousands dot + decimal
+    comma) from "44.990" (thousands dot only, no decimal part).
+    """
+    # Strip currency symbols/words, whitespace variants, and known trailing
+    # words some sites append (e.g. Hungarian "-tól"/"-től" = "starting from").
+    cleaned = (
+        raw_text.strip()
+        .replace("€", "")
+        .replace("$", "")
+        .replace("£", "")
+        .replace("Ft", "")
+        .replace("FT", "")
+        .replace("ft", "")
+        .replace("\xa0", "")  # non-breaking space, common on price tags
+        .replace(" ", "")
+        .replace("-tól", "")
+        .replace("-től", "")
+        .strip()
+    )
+
+    if re.search(r",\d{2}$", cleaned):
+        # Comma is the decimal separator (e.g. "1.778,39" or "1778,39").
+        # Any remaining dots are thousands separators — remove them.
+        cleaned = cleaned.replace(".", "").replace(",", ".")
+    elif re.search(r"\.\d{2}$", cleaned):
+        # Dot is the decimal separator (e.g. "1,778.39" or "1778.39").
+        # Any remaining commas are thousands separators — remove them.
+        cleaned = cleaned.replace(",", "")
+    else:
+        # No clear decimal part (e.g. "44.990" or "24,990") — both dots
+        # and commas here are thousands separators, so strip them all.
+        cleaned = cleaned.replace(",", "").replace(".", "")
+
+    return float(cleaned)
+
+
 # --- Step 3: fetch and parse a price from a page --------------------------
 def fetch_price(url, selectors, badge_selectors=None):
     """
@@ -198,27 +246,7 @@ def fetch_price(url, selectors, badge_selectors=None):
     text_pieces = [t for t in element.stripped_strings if "%" not in t]
     raw_text = " ".join(text_pieces)
 
-    # Clean up the text: remove currency symbols, whitespace, thousands
-    # separators, and known trailing words like Hungarian "-tól"/"-től"
-    # ("starting from") that some sites append to price ranges.
-    cleaned = (
-        raw_text.strip()
-        .replace("€", "")
-        .replace("$", "")
-        .replace("£", "")
-        .replace("Ft", "")
-        .replace("FT", "")
-        .replace("ft", "")
-        .replace("\xa0", "")  # non-breaking space, common on price tags
-        .replace(" ", "")
-        .replace(",", "")
-        .replace("-tól", "")
-        .replace("-től", "")
-        .replace(".", "")
-        .strip()
-    )
-
-    price = float(cleaned)
+    price = parse_localized_number(raw_text)
     return price, matched_selector
 
 
@@ -292,13 +320,12 @@ def format_price(price):
     """
     Formats a price for display in the email, guessing the currency from
     the magnitude of the number:
-      - price > 10000  -> shown in euros (€)
-      - price <= 10000 -> shown in forint (Ft)
+      - price > 10000  -> shown in forint (Ft)
+      - price <= 10000 -> shown in euros (€)
 
     NOTE: this is a magnitude-based guess, not read from the page itself —
     double check this matches your actual products. If it's backwards for
-    your case (e.g. small numbers should be € and large numbers Ft), just
-    flip the comparison below.
+    your case, just flip the comparison below.
     """
     if price is None:
         return "price unknown"
