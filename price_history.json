@@ -54,5 +54,13 @@
   "https://www.canyon.com/en-hu/road-bikes/race-bikes/ultimate/cf-sl/ultimate-cf-7/4367.html?dwvar_4367_pv_rahmenfarbe=R101_P11&dwvar_4367_pv_rahmengroesse=S": {
     "name": "Canyon Ultimate CF 7",
     "last_price": 2999.0
+  },
+  "https://www.canyon.com/en-hu/road-bikes/endurance-bikes/endurace/cf/endurace-cf-7/4427.html?dwvar_4427_pv_rahmenfarbe=R129_P01&dwvar_4427_pv_rahmengroesse=S": {
+    "name": "Canyon Endurance CF 7",
+    "last_price": 2449.0
+  },
+  "https://www.canyon.com/en-hu/road-bikes/cyclocross-bikes/inflite/cf-sl/inflite-cf-sl-6/3843.html?dwvar_3843_pv_rahmenfarbe=R063_P29": {
+    "name": "Canyon Inflite CF SL 6",
+    "last_price": 2239.0
   }
 }
