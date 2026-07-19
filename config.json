@@ -69,6 +69,31 @@
       "name": "Canyon Ultimate CF 7",
       "url": "https://www.canyon.com/en-hu/road-bikes/race-bikes/ultimate/cf-sl/ultimate-cf-7/4367.html?dwvar_4367_pv_rahmenfarbe=R101_P11&dwvar_4367_pv_rahmengroesse=S",
       "selector": ".productDescription__priceSale"
+    },
+    {
+      "name": "Trek Domane SL 5 Gen 4",
+      "url": "https://www.mammothbikes.com/hu/kerekpar-trek-domane-sl-5-gen-4/p-592514",
+      "selector": [ ".price is__discount", ".price is__full" ]
+    },
+    {
+      "name": "Trek Domane AL 5 Gen 4",
+      "url": "https://www.mammothbikes.com/hu/kerekpar-trek-domane-5-gen-4/p-592484",
+      "selector":  [ ".price is__discount", ".price is__full" ]
+    },
+    {
+      "name": "Cannondale Supersix EVO Carbon 4",
+      "url": "https://www.mammothbikes.com/hu/kerekpar-cannondale-supersix-evo-carbon-4-2023/p-554886",
+      "selector":  [ ".price is__discount", ".price is__full" ]
+    },
+    {
+      "name": "Canyon Endurance CF 7",
+      "url": "https://www.canyon.com/en-hu/road-bikes/endurance-bikes/endurace/cf/endurace-cf-7/4427.html?dwvar_4427_pv_rahmenfarbe=R129_P01&dwvar_4427_pv_rahmengroesse=S",
+      "selector": ".productDescription__priceSale"
+    },
+    {
+      "name": "Canyon Inflite CF SL 6",
+      "url": "https://www.canyon.com/en-hu/road-bikes/cyclocross-bikes/inflite/cf-sl/inflite-cf-sl-6/3843.html?dwvar_3843_pv_rahmenfarbe=R063_P29",
+      "selector": ".productDescription__priceSale"
     }
   ],
   "email": {
