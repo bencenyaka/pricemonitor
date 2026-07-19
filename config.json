@@ -73,17 +73,17 @@
     {
       "name": "Trek Domane SL 5 Gen 4",
       "url": "https://www.mammothbikes.com/hu/kerekpar-trek-domane-sl-5-gen-4/p-592514",
-      "selector": [ ".price is__discount", ".price is__full" ]
+      "selector": ".price is__discount"
     },
     {
       "name": "Trek Domane AL 5 Gen 4",
       "url": "https://www.mammothbikes.com/hu/kerekpar-trek-domane-5-gen-4/p-592484",
-      "selector":  [ ".price is__discount", ".price is__full" ]
+      "selector":  ".price is__discount"
     },
     {
       "name": "Cannondale Supersix EVO Carbon 4",
       "url": "https://www.mammothbikes.com/hu/kerekpar-cannondale-supersix-evo-carbon-4-2023/p-554886",
-      "selector":  [ ".price is__discount", ".price is__full" ]
+      "selector":  ".price is__discount"
     },
     {
       "name": "Canyon Endurance CF 7",
